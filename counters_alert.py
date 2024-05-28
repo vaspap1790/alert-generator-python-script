@@ -3,7 +3,8 @@ import os
 from ruamel.yaml import YAML
 
 
-def add_errors_alert(directories, excluded_directories, absolute_project_path, absolute_sub_dir_path, file_name, app_name):
+def add_counters_alert(directories, excluded_directories, absolute_project_path, absolute_sub_dir_path, file_name,
+                       app_name, threshold):
     # Create a YAML object
     yaml = YAML()
     yaml.indent(sequence=4, offset=2)
@@ -20,15 +21,14 @@ def add_errors_alert(directories, excluded_directories, absolute_project_path, a
 
         # Define the alert to be added
         alert = {
-            'alert': f'High percentage server error in {app_name}',
+            'alert': f'High number of events not processed in {app_name}',
             'annotations': {
-                'description': 'Maximum number of 5xx errors reached',
-                'summary': f'The app is producing too many 5XX errors.',
+                'description': f'This alert is triggered when the number of events not processed during the last 5 minutes is more than {threshold}',
+                'summary': 'High number of not processed events.',
             },
-            'expr': f'(sum(increase(http_server_requests_seconds_count{{application_info_id="{app_name}", uri!~"(/prometheus|/health-check)", status=~"5\\\\d\\\\d"}}[5m])) or on() vector(0))/(sum(increase(http_server_requests_seconds_count{{application_info_id="{app_name}s", uri!~"(/prometheus|/health-check)"}}[5m]))+1)*100 > 5',
-            'for': '15m',
+            'expr': f'sum(increase(unknown_events_count{{application_info_id="{app_name}"}}[5m]) + increase(invalid_events_count{{application_info_id="{app_name}"}}[5m]) + increase(invalid_content_count{{application_info_id="{app_name}"}}[5m])) or on() vector(0) >= {threshold}',
             'labels': {
-                'severity': 'critical',
+                'severity': 'warning',
                 'app_group': 'squids',
                 'receiver': receiver,
             },
